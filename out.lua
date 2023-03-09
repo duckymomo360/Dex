@@ -19,6 +19,7 @@ local function initDeps(data)
 
 	API = data.API
 	RMD = data.RMD
+	Docs = data.Docs
 	env = data.env
 	service = data.service
 	plr = data.plr
@@ -1219,8 +1220,19 @@ local function main()
 
 		end})
 
-		context:Register("VIEW_API",{Name = "View API Page", IconMap = Explorer.MiscIcons, Icon = "Reference", OnClick = function()
+		context:Register("VIEW_API",{Name = "Copy API Page", IconMap = Explorer.ClassIcons, Icon = 34, OnClick = function()
+			local sList = selection.List
 
+			for i = 1,#sList do
+				local node = sList[i]
+				local docs = Docs[node.Obj.ClassName]
+
+				if docs and docs.learn_more_link then
+					env.setclipboard(docs.learn_more_link)
+				else
+					warn("docs not found for "..node.Obj.ClassName)
+				end
+			end
 		end})
 
 		context:Register("VIEW_OBJECT",{Name = "View Object (Right click to reset)", IconMap = Explorer.ClassIcons, Icon = 5, OnClick = function()
@@ -10166,6 +10178,7 @@ Main = (function()
 			
 			API = API,
 			RMD = RMD,
+			Docs = Docs,
 			env = env,
 			service = service,
 			plr = plr,
@@ -10669,6 +10682,39 @@ Main = (function()
 		return {Classes = classes, Enums = enums, PropertyOrders = propertyOrders}
 	end
 	
+	Main.FetchDocs = function()
+		local rawDocs
+		if Main.Elevated then
+			if Main.LocalDepsUpToDate() then
+				local localDocs = Lib.ReadFile("dex/rbx_docs.dat")
+				if localDocs then 
+					rawDocs = localDocs
+				else
+					Main.DepsVersionData[1] = ""
+				end
+			end
+			rawDocs = rawDocs or game:HttpGet("https://raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker/roblox/api-docs/en-us.json")
+		else
+			if script:FindFirstChild("Docs") then
+				rawDocs = require(script.Docs)
+			else
+				error("NO DOCS EXIST")
+			end
+		end
+
+		Main.RawDocs = rawDocs
+
+		local classes = {}
+		for i,v in pairs(service.HttpService:JSONDecode(rawDocs)) do
+			local name = i:match("@roblox/globaltype/(%w+)$")
+			if name then
+				classes[name] = v
+			end
+		end
+
+		return classes
+	end
+
 	Main.ShowGui = function(gui)
 		if env.protectgui then
 			env.protectgui(gui)
@@ -11068,12 +11114,16 @@ Main = (function()
 		intro.SetProgress("Fetching RMD",0.5)
 		RMD = Main.FetchRMD()
 		Lib.FastWait()
+		intro.SetProgress("Fetching Docs",0.5)
+		Docs = Main.FetchDocs()
+		Lib.FastWait()
 		
 		-- Save external deps locally if needed
 		if Main.Elevated and env.writefile and not Main.LocalDepsUpToDate() then
 			env.writefile("dex/deps_version.dat",Main.ClientVersion.."\n"..Main.RobloxVersion)
 			env.writefile("dex/rbx_api.dat",Main.RawAPI)
 			env.writefile("dex/rbx_rmd.dat",Main.RawRMD)
+			env.writefile("dex/rbx_docs.dat",Main.RawDocs)
 		end
 		
 		-- Load other modules
