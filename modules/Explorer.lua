@@ -17,6 +17,7 @@ local function initDeps(data)
 
 	API = data.API
 	RMD = data.RMD
+	Docs = data.Docs
 	env = data.env
 	service = data.service
 	plr = data.plr
@@ -1217,8 +1218,19 @@ local function main()
 
 		end})
 
-		context:Register("VIEW_API",{Name = "View API Page", IconMap = Explorer.MiscIcons, Icon = "Reference", OnClick = function()
+		context:Register("VIEW_API",{Name = "Copy API Page", IconMap = Explorer.ClassIcons, Icon = 34, OnClick = function()
+			local sList = selection.List
 
+			for i = 1,#sList do
+				local node = sList[i]
+				local docs = Docs[node.Obj.ClassName]
+
+				if docs and docs.learn_more_link then
+					env.setclipboard(docs.learn_more_link)
+				else
+					warn("docs not found for "..node.Obj.ClassName)
+				end
+			end
 		end})
 
 		context:Register("VIEW_OBJECT",{Name = "View Object (Right click to reset)", IconMap = Explorer.ClassIcons, Icon = 5, OnClick = function()
